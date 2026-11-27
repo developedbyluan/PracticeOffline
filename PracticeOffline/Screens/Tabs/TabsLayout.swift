@@ -13,12 +13,9 @@ struct TabsLayout: View {
             SettingsScreen()
                 .tabItem { Label("Settings", systemImage: "gear") }
         }
+        // In-app messages, usable from any tab: Toast.show(...)
+        .toastHost()
     }
-}
-
-/// src/app/(tabs)/index.tsx (placeholder)
-struct HomeScreen: View {
-    var body: some View { PlaceholderScreen(title: "Home") }
 }
 
 /// src/app/(tabs)/sessions.tsx (placeholder)
