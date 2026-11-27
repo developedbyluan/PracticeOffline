@@ -34,7 +34,8 @@ struct AudioPlayerScreen: View {
         .task(id: localURL) {
             let engine = PlaybackEngine(
                 url: localURL, mediaId: mediaId,
-                nowPlaying: .init(title: title, author: author, artworkFile: artworkFile, artworkURL: artworkURL)
+                nowPlaying: .init(title: title, author: author, artworkFile: artworkFile,
+                                  artworkURL: artworkURL, isVideo: false)
             )
             self.engine = engine
             await engine.load()
@@ -47,6 +48,7 @@ struct AudioPlayerScreen: View {
 }
 
 /// Wraps AVPlayer and publishes what the screen shows: time, length, loaded, playing.
+/// Used for audio and video lessons alike; the video screen also shows `avPlayer`'s picture.
 /// Also does what has to keep working while the app is in the background or the screen
 /// is locked: saving the position (port of usePlaybackPosition) and the lock-screen controls.
 @MainActor @Observable
@@ -56,12 +58,18 @@ final class PlaybackEngine {
         let author: String
         let artworkFile: URL?
         let artworkURL: String?
+        let isVideo: Bool
     }
 
     private(set) var currentTime: Double = 0
     private(set) var duration: Double = 0
     private(set) var isLoaded = false
     private(set) var playing = false
+    /// The file couldn't be opened or played.
+    private(set) var failed = false
+
+    /// The underlying player, so the video screen can show its picture.
+    var avPlayer: AVPlayer { player }
 
     /// Save at least this often while playing.
     private static let saveEverySeconds: Double = 5
@@ -93,10 +101,14 @@ final class PlaybackEngine {
         try? AVAudioSession.sharedInstance().setCategory(.playback, mode: .spokenAudio)
         try? AVAudioSession.sharedInstance().setActive(true)
 
-        guard let asset = player.currentItem?.asset,
-              let length = try? await asset.load(.duration),
-              !Task.isCancelled, !stopped // closed while loading
-        else { return }
+        guard let asset = player.currentItem?.asset else { failed = true; return }
+        let loaded = try? await asset.load(.duration, .isPlayable)
+        guard !Task.isCancelled, !stopped else { return } // closed while loading
+        // e.g. a damaged file, or a format iPhones can't play (such as .webm).
+        guard let (length, isPlayable) = loaded, isPlayable else {
+            failed = true
+            return
+        }
         duration = length.seconds.isFinite ? length.seconds : 0
 
         // Open where the lesson was left off. Done before the time is reported, so the
@@ -134,6 +146,8 @@ final class PlaybackEngine {
     }
 
     func play() {
+        // Nothing to play if the file didn't load (e.g. a damaged file).
+        guard isLoaded, !failed, !stopped else { return }
         player.play()
         playing = true
         updateNowPlaying()
@@ -250,7 +264,8 @@ final class PlaybackEngine {
             MPMediaItemPropertyPlaybackDuration: duration,
             MPNowPlayingInfoPropertyElapsedPlaybackTime: currentTime,
             MPNowPlayingInfoPropertyPlaybackRate: playing ? 1.0 : 0.0,
-            MPNowPlayingInfoPropertyMediaType: MPNowPlayingInfoMediaType.audio.rawValue,
+            MPNowPlayingInfoPropertyMediaType: (nowPlaying.isVideo
+                ? MPNowPlayingInfoMediaType.video : MPNowPlayingInfoMediaType.audio).rawValue,
         ]
         if !nowPlaying.author.isEmpty { info[MPMediaItemPropertyArtist] = nowPlaying.author }
         if let artwork { info[MPMediaItemPropertyArtwork] = artwork }

@@ -46,20 +46,34 @@ struct PlayerScreen: View {
         // nil if the file isn't on the phone (e.g. the download was removed).
         let localURL = downloads.downloadedMediaURL(mediaId: source.mediaId, fileUrl: source.fileUrl)
 
-        if source.fileUrl.isEmpty || MediaKind(fileUrl: source.fileUrl) == nil {
+        // Audio or video, from the file's extension.
+        let kind = MediaKind(fileUrl: source.fileUrl)
+
+        if source.fileUrl.isEmpty || kind == nil {
             PlayerMessage(text: "Couldn't open this lesson.")
         } else if let localURL {
-            // Video lessons play their sound with the picture for now; showing the video
-            // itself comes with the video player.
-            AudioPlayerScreen(
-                mediaId: source.mediaId,
-                localURL: localURL,
-                title: request.title,
-                author: request.author,
-                artworkFile: downloads.localThumbnailURL(mediaId: source.mediaId),
-                artworkURL: source.thumbnailUrl,
-                transcript: transcript
-            )
+            // Only one of them is shown, so only one player is ever created.
+            if kind == .video {
+                VideoPlayerScreen(
+                    mediaId: source.mediaId,
+                    localURL: localURL,
+                    title: request.title,
+                    author: request.author,
+                    artworkFile: downloads.localThumbnailURL(mediaId: source.mediaId),
+                    artworkURL: source.thumbnailUrl,
+                    transcript: transcript
+                )
+            } else {
+                AudioPlayerScreen(
+                    mediaId: source.mediaId,
+                    localURL: localURL,
+                    title: request.title,
+                    author: request.author,
+                    artworkFile: downloads.localThumbnailURL(mediaId: source.mediaId),
+                    artworkURL: source.thumbnailUrl,
+                    transcript: transcript
+                )
+            }
         } else {
             PlayerMessage(text: "This lesson isn't downloaded. Download it to play it offline.")
         }
