@@ -8,6 +8,10 @@ struct SeekBar: View {
     /// seconds; 0 until the media is loaded
     let duration: Double
     let onSeek: (Double) async -> Void
+    /// `.light` draws it for a dark background, e.g. over fullscreen video.
+    var tone: Tone = .dark
+
+    enum Tone { case dark, light }
 
     private static let thumbSize: CGFloat = 28
     private static let stepSeconds: Double = 5
@@ -28,10 +32,10 @@ struct SeekBar: View {
                 let width = max(geometry.size.width, 1)
                 ZStack(alignment: .leading) {
                     Capsule()
-                        .fill(Color(.systemGray5))
+                        .fill(tone == .light ? Color.white.opacity(0.35) : Color(.systemGray5))
                         .frame(height: 4)
                     Capsule()
-                        .fill(Color(.systemGray))
+                        .fill(tone == .light ? Color.white : Color(.systemGray))
                         .frame(width: width * ratio, height: 4)
                     Circle()
                         .fill(.white)
@@ -73,6 +77,7 @@ struct SeekBar: View {
                 Text(formatTime(duration))
             }
             .font(.footnote.monospacedDigit())
+            .foregroundStyle(tone == .light ? Color.white : Color.primary)
             .accessibilityHidden(true)
         }
     }

@@ -1,3 +1,4 @@
+import ClerkKit
 import SwiftUI
 
 /// What the player needs to open a lesson (the Expo app passes these as route params).
@@ -14,9 +15,13 @@ struct PlayerScreen: View {
     let request: PlayerRequest
 
     @State private var downloads = MediaDownloads.shared
+    /// nil while loading. Port of useTranscript: the saved copy when downloaded, otherwise fetched.
+    @State private var transcript: TranscriptResult?
 
     var body: some View {
         content
+            // Above the player's controls.
+            .toastHost(bottomPadding: 210)
             // While the player is open, background updates leave this lesson's files alone.
             .task(id: request.source.mediaId) {
                 let release = downloads.markInUse(mediaId: request.source.mediaId)
@@ -25,6 +30,16 @@ struct PlayerScreen: View {
                 await waitUntilCancelled()
                 release()
             }
+            .task(id: request.source.mediaId) {
+                do {
+                    let json = try await downloads.transcript(
+                        mediaId: request.source.mediaId, fileJsonId: request.source.fileJsonId)
+                    transcript = .lines(json.json)
+                } catch {
+                    if Task.isCancelled { return }
+                    transcript = .error(error.localizedDescription)
+                }
+            }
     }
 
     @ViewBuilder private var content: some View {
@@ -32,19 +47,36 @@ struct PlayerScreen: View {
         // nil if the file isn't on the phone (e.g. the download was removed).
         let localURL = downloads.downloadedMediaURL(mediaId: source.mediaId, fileUrl: source.fileUrl)
 
-        if source.fileUrl.isEmpty || MediaKind(fileUrl: source.fileUrl) == nil {
+        // Audio or video, from the file's extension.
+        let kind = MediaKind(fileUrl: source.fileUrl)
+
+        if source.fileUrl.isEmpty || kind == nil {
             PlayerMessage(text: "Couldn't open this lesson.")
         } else if let localURL {
-            // Video lessons play their sound with the picture for now; showing the video
-            // itself comes with the video player.
-            AudioPlayerScreen(
-                localURL: localURL,
-                title: request.title,
-                artwork: ThumbnailImage(
-                    url: source.thumbnailUrl,
-                    localFile: downloads.localThumbnailURL(mediaId: source.mediaId)
+            // Only one of them is shown, so only one player is ever created.
+            if kind == .video {
+                VideoPlayerScreen(
+                    mediaId: source.mediaId,
+                    userId: Clerk.shared.user?.id,
+                    localURL: localURL,
+                    title: request.title,
+                    author: request.author,
+                    artworkFile: downloads.localThumbnailURL(mediaId: source.mediaId),
+                    artworkURL: source.thumbnailUrl,
+                    transcript: transcript
                 )
-            )
+            } else {
+                AudioPlayerScreen(
+                    mediaId: source.mediaId,
+                    userId: Clerk.shared.user?.id,
+                    localURL: localURL,
+                    title: request.title,
+                    author: request.author,
+                    artworkFile: downloads.localThumbnailURL(mediaId: source.mediaId),
+                    artworkURL: source.thumbnailUrl,
+                    transcript: transcript
+                )
+            }
         } else {
             PlayerMessage(text: "This lesson isn't downloaded. Download it to play it offline.")
         }

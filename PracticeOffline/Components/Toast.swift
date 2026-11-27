@@ -33,8 +33,11 @@ final class Toast {
     }
 }
 
-/// Shows the current toast. Mounted once, around the tabs.
+/// Shows the current toast. Mounted around the tabs, and around the player sheet
+/// (a sheet covers the tabs' toast).
 struct ToastHost: ViewModifier {
+    /// How far above the bottom edge it sits, e.g. to clear the tab bar.
+    var bottomPadding: CGFloat = 64
     @State private var toast = Toast.shared
 
     func body(content: Content) -> some View {
@@ -51,8 +54,7 @@ struct ToastHost: ViewModifier {
                 .padding(.horizontal, 14)
                 .background(Color(white: 0.11), in: .rect(cornerRadius: 12))
                 .padding(.horizontal, 16)
-                // Sits above the tab bar.
-                .padding(.bottom, 64)
+                .padding(.bottom, bottomPadding)
                 .onTapGesture { toast.hide() }
                 .transition(.move(edge: .bottom).combined(with: .opacity))
                 .id(message)
@@ -62,5 +64,7 @@ struct ToastHost: ViewModifier {
 }
 
 extension View {
-    func toastHost() -> some View { modifier(ToastHost()) }
+    func toastHost(bottomPadding: CGFloat = 64) -> some View {
+        modifier(ToastHost(bottomPadding: bottomPadding))
+    }
 }

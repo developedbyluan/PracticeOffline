@@ -110,6 +110,42 @@ nonisolated struct TranscriptLine: Codable, Sendable, Identifiable, Hashable {
     var speaker: String
 }
 
+extension TranscriptLine {
+    /// A missing text field becomes "" instead of making the whole transcript fail to load.
+    nonisolated init(from decoder: any Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        func text(_ key: CodingKeys) -> String { (try? c.decodeIfPresent(String.self, forKey: key)) ?? "" }
+        id = try c.decode(Int.self, forKey: .id)
+        start = try c.decode(Double.self, forKey: .start)
+        end = (try? c.decodeIfPresent(Double.self, forKey: .end)) ?? start
+        target = text(.target)
+        ipa = text(.ipa)
+        mine = text(.mine)
+        speaker = text(.speaker)
+    }
+
+    /// A label like "Narrator:" shown above the line; nil for "question", "answer" and "".
+    var speakerLabel: String? { speaker.hasSuffix(":") ? speaker : nil }
+
+    /// An answer line is readable only while it's playing (start ≤ time < end), so the
+    /// learner can try to answer first. Lines with bad timing (end ≤ start) stay hidden.
+    func isAnswerHidden(at currentTime: Double) -> Bool {
+        guard speaker == "answer" else { return false }
+        let playing = end > start && currentTime >= start && currentTime < end
+        return !playing
+    }
+}
+
+/// The line being spoken: the last one that has started. Between lines, the previous
+/// line stays highlighted. -1 before the first line starts.
+nonisolated func activeLineIndex(_ lines: [TranscriptLine], currentTime: Double) -> Int {
+    var index = -1
+    for (i, line) in lines.enumerated() {
+        if line.start <= currentTime { index = i } else { break }
+    }
+    return index
+}
+
 /// A lesson's whole transcript.
 nonisolated struct MediaJSON: Codable, Sendable {
     /// The fileJsonId.
