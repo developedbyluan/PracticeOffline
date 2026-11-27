@@ -35,6 +35,7 @@ final class NotificationPermission {
         if !firstCheck, !wasGranted, granted {
             PracticeReminders.shared.sync()
             EventReminders.shared.resync()
+            PushNotifications.shared.sync()
         }
     }
 

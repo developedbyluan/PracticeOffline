@@ -11,11 +11,17 @@ final class AppNavigation {
     var tab: Tab = .home
     /// Bumped on every "open Pinned" request, so the Pinned tab reloads and the player closes.
     private(set) var pinnedRequests = 0
+    /// Bumped when a new-event push arrives while the app is open, so an open Pinned tab reloads.
+    private(set) var newPinnedArrivals = 0
 
     private init() {}
 
     func openPinned() {
         tab = .pinned
         pinnedRequests += 1
+    }
+
+    func newPinnedArrived() {
+        newPinnedArrivals += 1
     }
 }

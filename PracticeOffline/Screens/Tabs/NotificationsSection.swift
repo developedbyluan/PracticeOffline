@@ -228,3 +228,50 @@ struct EventRemindersRow: View {
         }
     }
 }
+
+/// The "New pinned events" switch in EventsGroup (settings.tsx): server pushes when a new
+/// event is pinned. Shows on only while notifications are allowed. Off unregisters this
+/// phone from the worker.
+struct NewPinnedEventsRow: View {
+    @State private var permission = NotificationPermission.shared
+    @State private var push = PushNotifications.shared
+    @Environment(\.openURL) private var openURL
+    @State private var asking = false
+    @State private var offerSettings = false
+
+    /// Before the first check, assume allowed so the switch doesn't flicker off.
+    private var granted: Bool { permission.status == nil || permission.granted }
+
+    var body: some View {
+        Toggle(isOn: Binding(
+            get: { push.enabled && granted },
+            set: { on in
+                if on {
+                    Task {
+                        asking = true
+                        if await push.turnOn() == .blocked { offerSettings = true }
+                        asking = false
+                    }
+                } else {
+                    push.turnOff()
+                }
+            }
+        )) {
+            VStack(alignment: .leading, spacing: 2) {
+                Text("New pinned events")
+                Text("When a new event is pinned")
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+            }
+        }
+        .disabled(asking)
+        .alert("Notifications are off for this app", isPresented: $offerSettings) {
+            Button("Open Settings") {
+                if let url = URL(string: UIApplication.openNotificationSettingsURLString) { openURL(url) }
+            }
+            Button("Cancel", role: .cancel) {}
+        } message: {
+            Text("To hear about new events, allow notifications in your iPhone's Settings.")
+        }
+    }
+}

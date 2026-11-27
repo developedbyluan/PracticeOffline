@@ -34,6 +34,25 @@ enum OrientationLock {
 /// Tells iOS which way the screen may turn right now.
 final class AppDelegate: NSObject, UIApplicationDelegate {
     func application(_ application: UIApplication,
+                     didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]? = nil) -> Bool {
+        // Firebase and this phone's push address, for new pinned events.
+        PushNotifications.shared.start()
+        return true
+    }
+
+    /// Apple gave this phone its push address: Firebase needs it before it can make an FCM
+    /// token, so hand it over and sync again.
+    func application(_ application: UIApplication,
+                     didRegisterForRemoteNotificationsWithDeviceToken deviceToken: Data) {
+        PushNotifications.shared.apnsTokenReceived(deviceToken)
+    }
+
+    func application(_ application: UIApplication,
+                     didFailToRegisterForRemoteNotificationsWithError error: any Error) {
+        print("Push: Apple refused a push address:", error.localizedDescription)
+    }
+
+    func application(_ application: UIApplication,
                      supportedInterfaceOrientationsFor window: UIWindow?) -> UIInterfaceOrientationMask {
         OrientationLock.mask
     }

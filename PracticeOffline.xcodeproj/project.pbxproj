@@ -9,12 +9,14 @@
 /* Begin PBXBuildFile section */
 		000000000000000300000001 /* ClerkKit in Frameworks */ = {isa = PBXBuildFile; productRef = 000000000000000310000001 /* ClerkKit */; };
 		000000000000000300000002 /* ClerkKitUI in Frameworks */ = {isa = PBXBuildFile; productRef = 000000000000000310000002 /* ClerkKitUI */; };
+		000000000000000300000003 /* FirebaseMessaging in Frameworks */ = {isa = PBXBuildFile; productRef = 000000000000000310000003 /* FirebaseMessaging */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
 		000000000000000000000120 /* PracticeOffline.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = PracticeOffline.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		000000000000000000000130 /* Config.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Config.xcconfig; sourceTree = "<group>"; };
 		000000000000000000000131 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
+		000000000000000000000132 /* PracticeOffline.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = PracticeOffline.entitlements; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
@@ -31,6 +33,7 @@
 			files = (
 				000000000000000300000001 /* ClerkKit in Frameworks */,
 				000000000000000300000002 /* ClerkKitUI in Frameworks */,
+				000000000000000300000003 /* FirebaseMessaging in Frameworks */,
 			);
 		};
 /* End PBXFrameworksBuildPhase section */
@@ -42,6 +45,7 @@
 				000000000000000000000010 /* PracticeOffline */,
 				000000000000000000000130 /* Config.xcconfig */,
 				000000000000000000000131 /* Info.plist */,
+				000000000000000000000132 /* PracticeOffline.entitlements */,
 				000000000000000000000020 /* Products */,
 			);
 			sourceTree = "<group>";
@@ -74,6 +78,7 @@
 			packageProductDependencies = (
 				000000000000000310000001 /* ClerkKit */,
 				000000000000000310000002 /* ClerkKitUI */,
+				000000000000000310000003 /* FirebaseMessaging */,
 			);
 			productName = MyApp;
 			productReference = 000000000000000000000120 /* PracticeOffline.app */;
@@ -105,6 +110,7 @@
 			minimizedProjectReferenceProxies = 1;
 			packageReferences = (
 				000000000000000320000001 /* XCRemoteSwiftPackageReference "clerk-ios" */,
+				000000000000000320000002 /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */,
 			);
 			preferredProjectObjectVersion = 90;
 			productRefGroup = 000000000000000000000020 /* Products */;
@@ -271,6 +277,7 @@
 			isa = XCBuildConfiguration;
 			baseConfigurationReference = 000000000000000000000130 /* Config.xcconfig */;
 			buildSettings = {
+				CODE_SIGN_ENTITLEMENTS = PracticeOffline.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				ENABLE_APP_SANDBOX = YES;
@@ -314,6 +321,7 @@
 			isa = XCBuildConfiguration;
 			baseConfigurationReference = 000000000000000000000130 /* Config.xcconfig */;
 			buildSettings = {
+				CODE_SIGN_ENTITLEMENTS = PracticeOffline.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				ENABLE_APP_SANDBOX = YES;
@@ -383,6 +391,14 @@
 				minimumVersion = 1.7.5;
 			};
 		};
+		000000000000000320000002 /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/firebase/firebase-ios-sdk";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 13.2.0;
+			};
+		};
 /* End XCRemoteSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
@@ -395,6 +411,11 @@
 			isa = XCSwiftPackageProductDependency;
 			package = 000000000000000320000001 /* XCRemoteSwiftPackageReference "clerk-ios" */;
 			productName = ClerkKitUI;
+		};
+		000000000000000310000003 /* FirebaseMessaging */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 000000000000000320000002 /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */;
+			productName = FirebaseMessaging;
 		};
 /* End XCSwiftPackageProductDependency section */
 	};
