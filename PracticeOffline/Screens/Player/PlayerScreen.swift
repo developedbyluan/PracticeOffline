@@ -52,12 +52,12 @@ struct PlayerScreen: View {
             // Video lessons play their sound with the picture for now; showing the video
             // itself comes with the video player.
             AudioPlayerScreen(
+                mediaId: source.mediaId,
                 localURL: localURL,
                 title: request.title,
-                artwork: ThumbnailImage(
-                    url: source.thumbnailUrl,
-                    localFile: downloads.localThumbnailURL(mediaId: source.mediaId)
-                ),
+                author: request.author,
+                artworkFile: downloads.localThumbnailURL(mediaId: source.mediaId),
+                artworkURL: source.thumbnailUrl,
                 transcript: transcript
             )
         } else {
