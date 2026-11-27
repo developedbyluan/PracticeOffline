@@ -1,10 +1,11 @@
 import SwiftUI
 
 /// Port of src/components/player/PlayerLayout.tsx: title, picture, transcript, seek bar,
-/// play/pause, the repeat range (see docs/play-range.md) and the "Aa" text size.
+/// play/pause, ±5 s, the hide-picture arrow, the repeat range (see docs/play-range.md)
+/// and the "Aa" text size.
 /// The player screen's look, shared by every player engine: each engine passes in its
 /// state and controls; this view doesn't know what's playing.
-/// The ±5 s buttons and the Favorites menu button come in later milestones.
+/// The Favorites menu button comes in a later milestone.
 struct PlayerLayout<Media: View>: View {
     let title: String
     /// The artwork (audio) or the video, shown full width.
@@ -30,11 +31,14 @@ struct PlayerLayout<Media: View>: View {
     /// A bigger step between two time updates is a seek, not playback crossing End.
     private static var maxTickSeconds: Double { 1.5 }
     private static var playButtonSize: CGFloat { 76 }
+    private static var skipSeconds: Double { 5 }
 
     /// The part of the lesson playing on repeat. Not saved: closing the player clears it.
     @State private var range: PlayRange?
     /// Set while the jump back to Start is landing, so it never seeks twice.
     @State private var jumping = false
+    /// Hides the picture to give the transcript more room. Not saved.
+    @State private var mediaHidden = false
     @AppStorage(TranscriptTextSize.storageKey) private var textSizeIndex = TranscriptTextSize.defaultIndex
 
     private var lines: [TranscriptLine]? {
@@ -56,13 +60,31 @@ struct PlayerLayout<Media: View>: View {
                 .padding(.bottom, 16)
                 .accessibilityAddTraits(.isHeader)
 
-            media
-                .frame(maxWidth: .infinity)
-                .aspectRatio(16 / 9, contentMode: .fit)
+            if !mediaHidden {
+                media
+                    .frame(maxWidth: .infinity)
+                    .aspectRatio(16 / 9, contentMode: .fit)
+            }
+
+            // The arrow that hides or shows the picture, on the right above the transcript.
+            HStack {
+                Spacer()
+                Button {
+                    mediaHidden.toggle()
+                } label: {
+                    Image(systemName: mediaHidden ? "chevron.down" : "chevron.up")
+                        .font(.system(size: 18, weight: .semibold))
+                        .foregroundStyle(.gray)
+                        .frame(width: 44, height: 32)
+                        .contentShape(.rect)
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel(mediaHidden ? "Show picture" : "Hide picture")
+            }
+            .padding(.horizontal, 12)
 
             transcriptArea
                 .padding(.horizontal, 24)
-                .padding(.top, 16)
 
             SeekBar(currentTime: currentTime, duration: duration, onSeek: onSeek)
                 .padding(.horizontal, 24)
@@ -114,7 +136,7 @@ struct PlayerLayout<Media: View>: View {
                 if let range {
                     RangeEnd(label: "Start", time: range.start, currentTime: currentTime, onSet: setStartHere)
                 } else {
-                    Color.clear.frame(height: 1)
+                    SkipButton(seconds: -Self.skipSeconds, enabled: isLoaded) { skip(-Self.skipSeconds) }
                 }
             }
             .frame(maxWidth: .infinity)
@@ -142,7 +164,7 @@ struct PlayerLayout<Media: View>: View {
                 if let range {
                     RangeEnd(label: "End", time: range.end, currentTime: currentTime, onSet: setEndHere)
                 } else {
-                    Color.clear.frame(height: 1)
+                    SkipButton(seconds: Self.skipSeconds, enabled: isLoaded) { skip(Self.skipSeconds) }
                 }
             }
             .frame(maxWidth: .infinity)
@@ -187,6 +209,10 @@ struct PlayerLayout<Media: View>: View {
             await onSeek(0)
         }
         onPlay()
+    }
+
+    private func skip(_ delta: Double) {
+        Task { await onSeek(min(duration, max(0, currentTime + delta))) }
     }
 
     private func toggleRange() async {
@@ -270,6 +296,27 @@ private struct RangeEnd: View {
             .buttonStyle(.plain)
             .accessibilityLabel("Set \(label.lowercased()) to current time, now \(formatTime(currentTime))")
         }
+    }
+}
+
+/// Back or forward 5 seconds.
+private struct SkipButton: View {
+    let seconds: Double
+    let enabled: Bool
+    let action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            Image(systemName: seconds < 0 ? "gobackward.5" : "goforward.5")
+                .font(.system(size: 32))
+                .foregroundStyle(.primary)
+                .frame(width: 56, height: 56)
+                .contentShape(.rect)
+        }
+        .buttonStyle(.plain)
+        .disabled(!enabled)
+        .opacity(enabled ? 1 : 0.35)
+        .accessibilityLabel(seconds < 0 ? "Back 5 seconds" : "Forward 5 seconds")
     }
 }
 
