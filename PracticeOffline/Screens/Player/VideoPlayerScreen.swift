@@ -9,6 +9,8 @@ import UIKit
 /// player closes. The fullscreen button opens VideoFullscreen, which shows subtitles.
 struct VideoPlayerScreen: View {
     let mediaId: Int
+    /// The signed-in Clerk user, stored on the listening session.
+    let userId: String?
     /// The downloaded file.
     let localURL: URL
     let title: String
@@ -40,7 +42,7 @@ struct VideoPlayerScreen: View {
         )
         .task(id: localURL) {
             let engine = PlaybackEngine(
-                url: localURL, mediaId: mediaId,
+                url: localURL, mediaId: mediaId, userId: userId,
                 nowPlaying: .init(title: title, author: author, artworkFile: artworkFile,
                                   artworkURL: artworkURL, isVideo: true)
             )

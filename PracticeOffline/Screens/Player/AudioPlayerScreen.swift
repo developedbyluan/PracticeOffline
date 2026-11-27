@@ -7,6 +7,8 @@ import UIKit
 /// Keeps playing in the background, with lock-screen controls, until the player closes.
 struct AudioPlayerScreen: View {
     let mediaId: Int
+    /// The signed-in Clerk user, stored on the listening session.
+    let userId: String?
     /// The downloaded file.
     let localURL: URL
     let title: String
@@ -33,7 +35,7 @@ struct AudioPlayerScreen: View {
         )
         .task(id: localURL) {
             let engine = PlaybackEngine(
-                url: localURL, mediaId: mediaId,
+                url: localURL, mediaId: mediaId, userId: userId,
                 nowPlaying: .init(title: title, author: author, artworkFile: artworkFile,
                                   artworkURL: artworkURL, isVideo: false)
             )
@@ -50,7 +52,8 @@ struct AudioPlayerScreen: View {
 /// Wraps AVPlayer and publishes what the screen shows: time, length, loaded, playing.
 /// Used for audio and video lessons alike; the video screen also shows `avPlayer`'s picture.
 /// Also does what has to keep working while the app is in the background or the screen
-/// is locked: saving the position (port of usePlaybackPosition) and the lock-screen controls.
+/// is locked: saving the position (port of usePlaybackPosition), counting listening time
+/// (port of usePlayTimeTracking) and the lock-screen controls.
 @MainActor @Observable
 final class PlaybackEngine {
     struct NowPlaying {
@@ -87,11 +90,16 @@ final class PlaybackEngine {
     @ObservationIgnored private var commandTargets: [(MPRemoteCommand, Any)] = []
     @ObservationIgnored private var appObservers: [any NSObjectProtocol] = []
     @ObservationIgnored private var artwork: MPMediaItemArtwork?
+    /// This visit's listening session.
+    @ObservationIgnored private let playTime: PlayTimeTracker
 
-    init(url: URL, mediaId: Int, nowPlaying: NowPlaying) {
+    /// `userId`: the signed-in Clerk user, stored on the listening session.
+    init(url: URL, mediaId: Int, userId: String?, nowPlaying: NowPlaying) {
         player = AVPlayer(url: url)
         self.mediaId = mediaId
         self.nowPlaying = nowPlaying
+        // The session starts when the player opens.
+        playTime = PlayTimeTracker(mediaId: mediaId, userId: userId)
     }
 
     /// Reads the file's length, jumps to where the lesson was left off (paused), then
@@ -146,6 +154,10 @@ final class PlaybackEngine {
         }
         // Every few seconds of playback.
         if playing, abs(currentTime - lastSaved) >= Self.saveEverySeconds { savePosition() }
+        // Listening time counts only while sound is actually coming out: not while paused,
+        // loading or seeking.
+        playTime.setPlaying(player.timeControlStatus == .playing)
+        playTime.tick()
     }
 
     func play() {
@@ -159,13 +171,17 @@ final class PlaybackEngine {
     func pause() {
         player.pause()
         playing = false
+        playTime.setPlaying(false)
         updateNowPlaying()
         savePosition()
     }
 
     func seek(to seconds: Double) async {
         let target = CMTime(seconds: max(0, min(seconds, duration)), preferredTimescale: 600)
+        // A seek stops the listening clock; it restarts once sound plays again.
+        playTime.setPlaying(false)
         await player.seek(to: target, toleranceBefore: .zero, toleranceAfter: .zero)
+        playTime.setPlaying(!stopped && player.timeControlStatus == .playing)
         currentTime = target.seconds
         updateNowPlaying()
     }
@@ -174,6 +190,8 @@ final class PlaybackEngine {
     func stop() {
         guard !stopped else { return }
         savePosition()
+        // Ends the listening session (dropped if under a second of playing).
+        playTime.finish()
         stopped = true
         player.pause()
         playing = false
@@ -208,7 +226,10 @@ final class PlaybackEngine {
     private func watchAppState() {
         for name in [UIApplication.willResignActiveNotification, UIApplication.didEnterBackgroundNotification] {
             let observer = NotificationCenter.default.addObserver(forName: name, object: nil, queue: .main) { [weak self] _ in
-                MainActor.assumeIsolated { self?.savePosition() }
+                MainActor.assumeIsolated {
+                    self?.savePosition()
+                    self?.playTime.checkpoint()
+                }
             }
             appObservers.append(observer)
         }

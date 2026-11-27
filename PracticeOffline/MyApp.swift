@@ -15,6 +15,8 @@ import SwiftUI
         if !publishableKey.isEmpty {
             Clerk.configure(publishableKey: publishableKey)
         }
+        // Opens the listening-time store, which closes sessions left open by a crash.
+        _ = PlayTimeStore.shared
     }
 
     var body: some Scene {

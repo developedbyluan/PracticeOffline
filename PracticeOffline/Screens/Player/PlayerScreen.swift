@@ -1,3 +1,4 @@
+import ClerkKit
 import SwiftUI
 
 /// What the player needs to open a lesson (the Expo app passes these as route params).
@@ -56,6 +57,7 @@ struct PlayerScreen: View {
             if kind == .video {
                 VideoPlayerScreen(
                     mediaId: source.mediaId,
+                    userId: Clerk.shared.user?.id,
                     localURL: localURL,
                     title: request.title,
                     author: request.author,
@@ -66,6 +68,7 @@ struct PlayerScreen: View {
             } else {
                 AudioPlayerScreen(
                     mediaId: source.mediaId,
+                    userId: Clerk.shared.user?.id,
                     localURL: localURL,
                     title: request.title,
                     author: request.author,
