@@ -68,14 +68,28 @@ final class PracticeReminders {
     }
 }
 
-/// Shows notifications that arrive while the app is open as a banner, with sound. Tapping
-/// one simply opens the app. Not tied to the main thread: the system calls it on its own
-/// queue, so a main-thread-only version would crash.
+/// Shows notifications that arrive while the app is open as a banner, with sound, and
+/// handles taps (port of src/notifications/taps.ts): an event reminder opens the Pinned
+/// tab, whether the app was running or not. Other notifications simply open the app.
+/// Not tied to the main thread: the system calls it on its own queue, so a
+/// main-thread-only version would crash.
 nonisolated final class ForegroundNotifications: NSObject, UNUserNotificationCenterDelegate, Sendable {
     static let shared = ForegroundNotifications()
 
     func userNotificationCenter(_ center: UNUserNotificationCenter,
                                 willPresent notification: UNNotification) async -> UNNotificationPresentationOptions {
         [.banner, .list, .sound]
+    }
+
+    /// Notification types whose tap opens the Pinned tab. The new-event push joins later.
+    private static let opensPinned: Set<String> = [EventReminders.notificationType]
+
+    func userNotificationCenter(_ center: UNUserNotificationCenter,
+                                didReceive response: UNNotificationResponse) async {
+        guard response.actionIdentifier == UNNotificationDefaultActionIdentifier,
+              let type = response.notification.request.content.userInfo["type"] as? String,
+              Self.opensPinned.contains(type)
+        else { return }
+        await MainActor.run { AppNavigation.shared.openPinned() }
     }
 }

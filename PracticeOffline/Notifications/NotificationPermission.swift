@@ -32,7 +32,10 @@ final class NotificationPermission {
         let wasGranted = granted
         let firstCheck = status == nil
         status = next
-        if !firstCheck, !wasGranted, granted { PracticeReminders.shared.sync() }
+        if !firstCheck, !wasGranted, granted {
+            PracticeReminders.shared.sync()
+            EventReminders.shared.resync()
+        }
     }
 
     /// Asks the system if it still can. `.denied`: refused at the prompt just now.

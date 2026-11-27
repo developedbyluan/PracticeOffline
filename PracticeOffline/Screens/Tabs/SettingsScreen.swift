@@ -19,6 +19,7 @@ struct SettingsScreen: View {
                 NotificationsSection()
 
                 Section {
+                    EventRemindersRow()
                     Toggle(isOn: $newPinnedEvents) {
                         VStack(alignment: .leading, spacing: 2) {
                             Text("New pinned events")
@@ -28,7 +29,7 @@ struct SettingsScreen: View {
                         }
                     }
                 } footer: {
-                    Text("Push notifications aren't set up yet, so for now this only remembers your choice.")
+                    Text("New pinned events needs push notifications, which aren't set up yet, so for now it only remembers your choice.")
                 }
             }
             .navigationTitle("Settings")

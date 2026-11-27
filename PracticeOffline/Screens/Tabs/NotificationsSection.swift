@@ -2,7 +2,7 @@ import SwiftUI
 
 /// Port of NotificationsSection and PracticeGroup in src/app/(tabs)/settings.tsx (see
 /// docs/settings-notifications.md and docs/practice-reminders.md): the "Notifications are
-/// off" notice and the daily practice reminder. A switch is on only when its notifications
+/// off" notice and the daily practice reminder (EventRemindersRow is below). A switch is on only when its notifications
 /// can actually arrive: turned on here and allowed by the iPhone.
 struct NotificationsSection: View {
     @State private var permission = NotificationPermission.shared
@@ -175,6 +175,56 @@ struct NotificationsSection: View {
     private func openSettings() {
         if let url = URL(string: UIApplication.openNotificationSettingsURLString) {
             openURL(url)
+        }
+    }
+}
+
+/// Port of the "Event reminders" switch in EventsGroup (settings.tsx): reminders 30 minutes
+/// before events you said "I'll be there!" to. Shows on only while notifications are allowed.
+struct EventRemindersRow: View {
+    @State private var permission = NotificationPermission.shared
+    @State private var reminders = EventReminders.shared
+    @Environment(\.openURL) private var openURL
+    @State private var asking = false
+    @State private var offerSettings = false
+
+    /// Before the first check, assume allowed so the switch doesn't flicker off.
+    private var granted: Bool { permission.status == nil || permission.granted }
+
+    var body: some View {
+        Toggle(isOn: Binding(
+            get: { reminders.enabled && granted },
+            set: { on in Task { await toggle(on) } }
+        )) {
+            VStack(alignment: .leading, spacing: 2) {
+                Text("Event reminders")
+                Text("30 minutes before events you're going to")
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+            }
+        }
+        .disabled(asking)
+        .alert("Notifications are off for this app", isPresented: $offerSettings) {
+            Button("Open Settings") {
+                if let url = URL(string: UIApplication.openNotificationSettingsURLString) { openURL(url) }
+            }
+            Button("Cancel", role: .cancel) {}
+        } message: {
+            Text("To get event reminders, allow notifications in your iPhone's Settings.")
+        }
+    }
+
+    private func toggle(_ on: Bool) async {
+        guard on else {
+            reminders.setEnabled(false)
+            return
+        }
+        asking = true
+        defer { asking = false }
+        switch await permission.askToTurnOn("get event reminders") {
+        case .granted: reminders.setEnabled(true)
+        case .blocked: offerSettings = true
+        case .denied: break
         }
     }
 }
