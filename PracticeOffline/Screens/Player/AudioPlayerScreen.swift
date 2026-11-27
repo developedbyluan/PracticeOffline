@@ -8,6 +8,7 @@ struct AudioPlayerScreen: View {
     let localURL: URL
     let title: String
     let artwork: ThumbnailImage
+    let transcript: TranscriptResult?
 
     @State private var engine: PlaybackEngine?
 
@@ -15,6 +16,7 @@ struct AudioPlayerScreen: View {
         PlayerLayout(
             title: title,
             media: { artwork },
+            transcript: transcript,
             currentTime: engine?.currentTime ?? 0,
             duration: engine?.duration ?? 0,
             isLoaded: engine?.isLoaded ?? false,

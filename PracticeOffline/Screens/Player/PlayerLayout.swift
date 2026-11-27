@@ -3,11 +3,13 @@ import SwiftUI
 /// Port of src/components/player/PlayerLayout.tsx (play, pause and the seek bar only).
 /// The player screen's look, shared by every player engine: each engine passes in its
 /// state and controls; this view doesn't know what's playing.
-/// The transcript, ±5 s buttons, repeat range and menu come in later milestones.
+/// The ±5 s buttons, repeat range and menu come in later milestones.
 struct PlayerLayout<Media: View>: View {
     let title: String
     /// The artwork (audio) or the video, shown full width.
     @ViewBuilder let media: Media
+    /// nil while loading.
+    let transcript: TranscriptResult?
     /// seconds
     let currentTime: Double
     /// seconds; 0 until loaded
@@ -36,8 +38,24 @@ struct PlayerLayout<Media: View>: View {
                 .frame(maxWidth: .infinity)
                 .aspectRatio(16 / 9, contentMode: .fit)
 
-            // The transcript goes here in a later milestone.
-            Spacer(minLength: 16)
+            Group {
+                switch transcript {
+                case nil:
+                    ProgressView()
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                case .error(let message):
+                    Text(message)
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                        .multilineTextAlignment(.center)
+                        .padding(.top, 24)
+                        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+                case .lines(let lines):
+                    TranscriptView(lines: lines, currentTime: currentTime, onSeek: onSeek)
+                }
+            }
+            .padding(.horizontal, 24)
+            .padding(.top, 16)
 
             SeekBar(currentTime: currentTime, duration: duration, onSeek: onSeek)
                 .padding(.horizontal, 24)

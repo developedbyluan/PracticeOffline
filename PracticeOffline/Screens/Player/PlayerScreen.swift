@@ -14,6 +14,8 @@ struct PlayerScreen: View {
     let request: PlayerRequest
 
     @State private var downloads = MediaDownloads.shared
+    /// nil while loading. Port of useTranscript: the saved copy when downloaded, otherwise fetched.
+    @State private var transcript: TranscriptResult?
 
     var body: some View {
         content
@@ -24,6 +26,16 @@ struct PlayerScreen: View {
                 _ = downloads.localMediaURL(mediaId: request.source.mediaId, fileUrl: request.source.fileUrl)
                 await waitUntilCancelled()
                 release()
+            }
+            .task(id: request.source.mediaId) {
+                do {
+                    let json = try await downloads.transcript(
+                        mediaId: request.source.mediaId, fileJsonId: request.source.fileJsonId)
+                    transcript = .lines(json.json)
+                } catch {
+                    if Task.isCancelled { return }
+                    transcript = .error(error.localizedDescription)
+                }
             }
     }
 
@@ -43,7 +55,8 @@ struct PlayerScreen: View {
                 artwork: ThumbnailImage(
                     url: source.thumbnailUrl,
                     localFile: downloads.localThumbnailURL(mediaId: source.mediaId)
-                )
+                ),
+                transcript: transcript
             )
         } else {
             PlayerMessage(text: "This lesson isn't downloaded. Download it to play it offline.")
