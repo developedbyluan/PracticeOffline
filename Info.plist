@@ -4,6 +4,10 @@
 <dict>
 	<key>ClerkPublishableKey</key>
 	<string>$(CLERK_PUBLISHABLE_KEY)</string>
+	<key>APIUser</key>
+	<string>$(API_USER)</string>
+	<key>APIPass</key>
+	<string>$(API_PASS)</string>
 	<key>UIBackgroundModes</key>
 	<array>
 		<string>audio</string>

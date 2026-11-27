@@ -3,7 +3,7 @@ import SwiftUI
 
 /// Port of src/app/(tabs)/sessions.tsx: listening history, one row per lesson, most
 /// listening time first. Only the signed-in user's sessions. Tapping a row opens that
-/// lesson's sessions. (The Android Upload button comes in a later milestone.)
+/// lesson's sessions. The Upload button sends them to the server.
 struct SessionsScreen: View {
     @Environment(Clerk.self) private var clerk
 
@@ -31,11 +31,18 @@ struct SessionsList: View {
     }
 
     @State private var rows: [LessonRow]?
+    @State private var uploading = false
 
     var body: some View {
         NavigationStack {
             content
                 .navigationTitle("Sessions")
+                .toolbar {
+                    // Only when there's something to upload.
+                    if let rows, !rows.isEmpty {
+                        ToolbarItem(placement: .topBarTrailing) { uploadButton }
+                    }
+                }
                 .navigationDestination(for: LessonSessionsScreen.Route.self) { route in
                     LessonSessionsScreen(route: route)
                 }
@@ -110,6 +117,41 @@ struct SessionsList: View {
         .accessibilityElement(children: .ignore)
         .accessibilityLabel("\(row.name), \(formatDuration(row.totalSeconds)), \(sessions)")
         .accessibilityHint("Shows each session")
+    }
+
+    /// A blue pill; a spinner and "Uploading…" while it runs, and it can't be tapped twice.
+    private var uploadButton: some View {
+        Button {
+            Task { await upload() }
+        } label: {
+            HStack(spacing: 6) {
+                if uploading {
+                    ProgressView().tint(.white).controlSize(.small)
+                } else {
+                    Image(systemName: "icloud.and.arrow.up")
+                }
+                Text(uploading ? "Uploading…" : "Upload")
+            }
+            .font(.subheadline.weight(.semibold))
+            .foregroundStyle(.white)
+            .padding(.horizontal, 14)
+            .frame(height: 34)
+            .background(.blue, in: .capsule)
+        }
+        .buttonStyle(.plain)
+        .disabled(uploading)
+        .accessibilityLabel("Upload sessions")
+        .accessibilityHint("Sends your sessions to the server and removes them from this phone")
+    }
+
+    /// Sends the sessions to the server; uploaded ones are deleted from the phone.
+    private func upload() async {
+        guard let userId, !uploading else { return }
+        uploading = true
+        let summary = await uploadSessions(userId: userId)
+        Toast.show(summary.message)
+        uploading = false
+        await load()
     }
 
     private func load() async {

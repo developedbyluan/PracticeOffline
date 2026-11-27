@@ -3,4 +3,6 @@
 // build still works, but the app will stop at launch asking for the key.
 
 CLERK_PUBLISHABLE_KEY =
+API_USER =
+API_PASS =
 #include? "Secrets.xcconfig"
