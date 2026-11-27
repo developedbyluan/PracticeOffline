@@ -18,23 +18,6 @@ struct TabsLayout: View {
     }
 }
 
-/// src/app/(tabs)/settings.tsx (placeholder)
-struct SettingsScreen: View {
-    var body: some View { PlaceholderScreen(title: "Settings") }
-}
-
-/// Empty screen showing just its name, until the real screen is ported.
-private struct PlaceholderScreen: View {
-    let title: String
-
-    var body: some View {
-        Text(title)
-            .font(.title)
-            .foregroundStyle(.secondary)
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
-    }
-}
-
 #Preview {
     TabsLayout()
 }
