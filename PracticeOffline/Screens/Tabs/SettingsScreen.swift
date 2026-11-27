@@ -3,7 +3,7 @@ import ClerkKitUI
 import SwiftUI
 
 /// Port of src/app/(tabs)/settings.tsx (see docs/settings-account.md): the Account section
-/// (who's signed in, Clerk's profile screen, Sign out) and, for now, one notification switch.
+/// (who's signed in, Clerk's profile screen, Sign out) and the notification settings.
 struct SettingsScreen: View {
     /// Whether to get a push when a new event is pinned. On by default, as in the Android
     /// app. Only remembered for now: push notifications come in a later milestone.
@@ -16,6 +16,8 @@ struct SettingsScreen: View {
             List {
                 AccountSection()
 
+                NotificationsSection()
+
                 Section {
                     Toggle(isOn: $newPinnedEvents) {
                         VStack(alignment: .leading, spacing: 2) {
@@ -25,10 +27,8 @@ struct SettingsScreen: View {
                                 .foregroundStyle(.secondary)
                         }
                     }
-                } header: {
-                    Text("Notifications")
                 } footer: {
-                    Text("Notifications aren't set up yet, so for now this only remembers your choice.")
+                    Text("Push notifications aren't set up yet, so for now this only remembers your choice.")
                 }
             }
             .navigationTitle("Settings")

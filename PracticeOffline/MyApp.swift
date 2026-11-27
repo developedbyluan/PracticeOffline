@@ -8,6 +8,7 @@ import SwiftUI
     @UIApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
     /// Read from Info.plist, which gets it from Secrets.xcconfig.
     private let publishableKey: String
+    @Environment(\.scenePhase) private var scenePhase
 
     init() {
         let key = Bundle.main.object(forInfoDictionaryKey: "ClerkPublishableKey") as? String ?? ""
@@ -17,6 +18,8 @@ import SwiftUI
         }
         // Opens the listening-time store, which closes sessions left open by a crash.
         _ = PlayTimeStore.shared
+        // Daily practice reminders: first permission check and reschedule.
+        PracticeReminders.shared.start()
     }
 
     var body: some Scene {
@@ -32,6 +35,10 @@ import SwiftUI
             } else {
                 MainScreen()
                     .environment(Clerk.shared)
+                    // Notification permission may have been changed in the iPhone's Settings.
+                    .onChange(of: scenePhase) { _, phase in
+                        if phase == .active { Task { await NotificationPermission.shared.refresh() } }
+                    }
             }
         }
     }
