@@ -22,12 +22,18 @@ struct HomeScreen: View {
     @State private var isRetrying = false
     @State private var lastFetchAt = Date.distantPast
     @State private var downloads = MediaDownloads.shared
+    /// The lesson open in the player sheet.
+    @State private var player: PlayerRequest?
 
     private var userId: String? { clerk.user?.id }
 
     var body: some View {
         content
             .task(id: userId) { await firstLoad() }
+            // The player slides up over the tabs, like the Expo app's modal.
+            .sheet(item: $player) { request in
+                PlayerScreen(request: request)
+            }
             .onChange(of: scenePhase) { _, phase in
                 // Refresh when the app comes back to the foreground, so server updates are noticed.
                 if phase == .active, let userId, isStale {
@@ -72,7 +78,7 @@ struct HomeScreen: View {
                         .padding(.top, 16)
                 }
                 ForEach(items) { item in
-                    MediaCard(item: item)
+                    MediaCard(item: item) { player = $0 }
                 }
                 if !leftovers.isEmpty {
                     notInFavorites(leftovers)
@@ -97,7 +103,7 @@ struct HomeScreen: View {
         }
         .padding(.top, 8)
         ForEach(leftovers) { leftover in
-            MediaCard(leftover: leftover)
+            MediaCard(leftover: leftover) { player = $0 }
         }
     }
 

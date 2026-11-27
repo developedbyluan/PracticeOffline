@@ -499,6 +499,12 @@ final class MediaDownloads {
         return file
     }
 
+    /// Like localMediaURL, but uses the known state instead of checking the disk, so it's
+    /// cheap while drawing, and views re-draw when the download finishes or is removed.
+    func downloadedMediaURL(mediaId: Int, fileUrl: String) -> URL? {
+        state(mediaId: mediaId, fileUrl: fileUrl).isDownloaded ? savedMediaFile(mediaId, fileUrl) : nil
+    }
+
     /// What a player should load: the local file when it's downloaded, otherwise the online URL.
     func playbackURL(mediaId: Int, fileUrl: String) -> URL? {
         localMediaURL(mediaId: mediaId, fileUrl: fileUrl) ?? URL(string: fileUrl)
