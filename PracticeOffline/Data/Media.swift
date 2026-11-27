@@ -122,3 +122,28 @@ nonisolated struct MediaJSON: Codable, Sendable {
 nonisolated func mediaJSONURL(fileJsonId: Int) -> URL {
     API.baseURL.appending(path: "json/\(fileJsonId)", directoryHint: .notDirectory)
 }
+
+/// Light shape check, enough to reject an error page or an unexpected response:
+/// a JSON object whose "json" is an array.
+nonisolated func isMediaJSON(_ data: Data) -> Bool {
+    guard let object = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else { return false }
+    return object["json"] is [Any]
+}
+
+/// A lesson's transcript from the server.
+@concurrent
+nonisolated func fetchMediaJSON(fileJsonId: Int) async throws -> MediaJSON {
+    let (data, response) = try await URLSession.shared.data(from: mediaJSONURL(fileJsonId: fileJsonId))
+    if let http = response as? HTTPURLResponse, !(200..<300).contains(http.statusCode) {
+        throw HTTPStatusError(what: "transcript", status: http.statusCode)
+    }
+    // An unknown fileJsonId returns 200 with an empty body.
+    guard isMediaJSON(data), let json = try? JSONDecoder().decode(MediaJSON.self, from: data) else {
+        throw TranscriptFormatError()
+    }
+    return json
+}
+
+nonisolated struct TranscriptFormatError: LocalizedError {
+    var errorDescription: String? { "Failed to load transcript (unexpected format)" }
+}

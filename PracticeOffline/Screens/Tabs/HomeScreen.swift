@@ -21,6 +21,7 @@ struct HomeScreen: View {
     @State private var result: FavoritesResult?
     @State private var isRetrying = false
     @State private var lastFetchAt = Date.distantPast
+    @State private var downloads = MediaDownloads.shared
 
     private var userId: String? { clerk.user?.id }
 
@@ -55,7 +56,11 @@ struct HomeScreen: View {
     }
 
     private func list(items: [MediaItem], problem: LoadProblem?, userId: String) -> some View {
-        ScrollView {
+        // Every lesson on the phone; the ones not in the list get their own section.
+        let favoriteIds = Set(items.map(\.mediaId))
+        let leftovers = downloads.downloadedItems().filter { !favoriteIds.contains($0.mediaId) }
+
+        return ScrollView {
             LazyVStack(alignment: .leading, spacing: 32) {
                 if let problem {
                     StatusBanner(kind: problem)
@@ -67,12 +72,33 @@ struct HomeScreen: View {
                         .padding(.top, 16)
                 }
                 ForEach(items) { item in
-                    MediaCard(name: item.fileName, author: item.fileAuthor, thumbnail: item.fileThumbnailUrl)
+                    MediaCard(item: item)
+                }
+                if !leftovers.isEmpty {
+                    notInFavorites(leftovers)
                 }
             }
             .padding(20)
         }
         .refreshable { await fetchFresh(userId: userId) }
+    }
+
+    /// Downloads whose lesson left the favorites list. They stay on the phone until the
+    /// user removes them, and still play offline.
+    @ViewBuilder private func notInFavorites(_ leftovers: [DownloadedItem]) -> some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Divider().padding(.bottom, 20)
+            Text("Not in favorites anymore")
+                .font(.title3.bold())
+                .accessibilityAddTraits(.isHeader)
+            Text("Still on this phone. Remove them when you're done.")
+                .font(.subheadline)
+                .foregroundStyle(.secondary)
+        }
+        .padding(.top, 8)
+        ForEach(leftovers) { leftover in
+            MediaCard(leftover: leftover)
+        }
     }
 
     /// Shown when the list couldn't load and there's no saved copy to fall back on.
@@ -123,7 +149,7 @@ struct HomeScreen: View {
         await fetchFresh(userId: userId)
     }
 
-    /// Fetches the latest list and saves it for offline use. If the request fails, the
+    /// Fetches the latest list, saves it for offline use, and updates outdated downloads. If the request fails, the
     /// list on screen (saved or fresh) stays, with a banner saying why.
     private func fetchFresh(userId: String) async {
         lastFetchAt = .now
@@ -132,6 +158,8 @@ struct HomeScreen: View {
             guard self.userId == userId else { return }
             Task { await FavoritesCache.save(items, userId: userId) }
             result = FavoritesResult(userId: userId, items: items, problem: nil)
+            // Update downloaded lessons that changed on the server.
+            downloads.syncDownloads(items)
         } catch {
             // Leaving the screen mid-request cancels it; that's not a failure.
             if error is CancellationError || (error as? URLError)?.code == .cancelled { return }

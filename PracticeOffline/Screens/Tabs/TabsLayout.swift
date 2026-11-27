@@ -13,6 +13,8 @@ struct TabsLayout: View {
             SettingsScreen()
                 .tabItem { Label("Settings", systemImage: "gear") }
         }
+        // In-app messages, usable from any tab: Toast.show(...)
+        .toastHost()
     }
 }
 
