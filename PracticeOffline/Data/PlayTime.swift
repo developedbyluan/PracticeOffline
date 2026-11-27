@@ -145,7 +145,9 @@ final class PlayTimeStore {
         }
     }
 
-    func delete(id: String) {
+    /// Returns false if it couldn't be deleted.
+    @discardableResult
+    func delete(id: String) -> Bool {
         write("delete a session") { context in
             if let session = try self.session(id, in: context) { context.delete(session) }
         }
@@ -199,14 +201,18 @@ final class PlayTimeStore {
     }
 
     /// Makes a change and saves it straight away, so a crash right after loses nothing.
-    private func write(_ label: String, _ change: (ModelContext) throws -> Void) {
-        guard let context else { return }
+    /// Returns false if it failed.
+    @discardableResult
+    private func write(_ label: String, _ change: (ModelContext) throws -> Void) -> Bool {
+        guard let context else { return false }
         do {
             try change(context)
             try context.save()
+            return true
         } catch {
             print("Play time: couldn't \(label):", error)
             context.rollback()
+            return false
         }
     }
 
