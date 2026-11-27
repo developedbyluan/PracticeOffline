@@ -1,9 +1,10 @@
 import ClerkKit
 import SwiftUI
 
-/// Port of the list in src/app/(tabs)/pinned.tsx: the signed-in user's pinned messages,
-/// loaded fresh each time the tab is opened, with pull to refresh. Online only.
-/// Not yet ported: the "Get notified" card (comes with push) and "I'll be there!".
+/// Port of src/app/(tabs)/pinned.tsx: the signed-in user's pinned messages, loaded fresh
+/// each time the tab is opened, with pull to refresh, and the "I'll be there!" replies.
+/// Online only. Not yet ported: the "Get notified" card and event reminders (they come
+/// with notifications).
 struct PinnedScreen: View {
     @Environment(Clerk.self) private var clerk
 
@@ -40,9 +41,19 @@ struct PinnedList: View {
         var loadedAt: Date
     }
 
+    private static let offlineToast = "You're offline. Try again when you're connected."
+
     @State private var state: LoadState?
-    @State private var loadTask: Task<Void, Never>?
+    @State private var loadTask: Task<[PinnedMessage]?, Never>?
     @State private var isRetrying = false
+    /// The user's membership role, which decides who gets the "I'll be there!" button.
+    /// Kept from the last successful lookup; nil while unknown.
+    @State private var role: String?
+    /// The user's own "I'll be there!" state, set right after a send or remove so the
+    /// button changes at once. Dropped when a reload from the server agrees.
+    @State private var overrides: [Int: Bool] = [:]
+    /// Messages with a reply request running: their button shows a spinner and ignores taps.
+    @State private var busyIds: Set<Int> = []
 
     var body: some View {
         Group {
@@ -71,7 +82,16 @@ struct PinnedList: View {
                             .multilineTextAlignment(.center)
                     }
                     ForEach(visible) { message in
-                        PinnedCard(message: message, now: state.loadedAt)
+                        let replied = isReplied(message)
+                        PinnedCard(
+                            message: message,
+                            now: state.loadedAt,
+                            replied: replied,
+                            busy: busyIds.contains(message.id),
+                            onToggleReply: { Task { await toggleReply(message, replied: replied) } },
+                            joinable: canJoin(message, role: role),
+                            roleKnown: role != nil
+                        )
                     }
                 }
                 .padding(.horizontal, 20)
@@ -116,22 +136,41 @@ struct PinnedList: View {
         .accessibilityElement(children: .contain)
     }
 
-    /// Starts a fresh load, replacing any load still running, and waits for it.
-    private func reload() async {
+    private func isReplied(_ message: PinnedMessage) -> Bool {
+        overrides[message.id] ?? !attendingReplyIds(message, userId: userId).isEmpty
+    }
+
+    // MARK: - Loading
+
+    /// Starts a fresh load, replacing any load still running, and waits for it. Returns the
+    /// fresh list, or nil if it failed or a newer load replaced it.
+    @discardableResult
+    private func reload() async -> [PinnedMessage]? {
         loadTask?.cancel()
         let task = Task { await load() }
         loadTask = task
-        await task.value
+        return await task.value
     }
 
-    private func load() async {
+    private func load() async -> [PinnedMessage]? {
+        // The role is looked up alongside; only the list decides success or failure.
+        async let freshRole = lookUpRole()
         do {
             let messages = try await fetchPinnedMessages(userId: userId, baseURL: baseURL)
-            guard !Task.isCancelled else { return }
+            let role = await freshRole
+            guard !Task.isCancelled else { return nil }
             state = LoadState(messages: messages, problem: nil, loadedAt: .now)
+            if let role { self.role = role }
+            // Forget local states the server now agrees with.
+            for message in messages {
+                let onServer = !attendingReplyIds(message, userId: userId).isEmpty
+                if overrides[message.id] == onServer { overrides[message.id] = nil }
+            }
+            return messages
         } catch {
+            _ = await freshRole
             // Replaced by a newer load, or the tab closed: not a failure.
-            if Task.isCancelled || error is CancellationError || (error as? URLError)?.code == .cancelled { return }
+            if Task.isCancelled || error is CancellationError || (error as? URLError)?.code == .cancelled { return nil }
             print("Couldn't load pinned messages:", error)
             let problem: LoadProblem = isOfflineError(error) ? .offline : .failed
             // Keep the list from an earlier load, with the message on top.
@@ -141,6 +180,80 @@ struct PinnedList: View {
             } else {
                 state = LoadState(messages: nil, problem: problem, loadedAt: .now)
             }
+            return nil
         }
+    }
+
+    /// nil when the lookup fails; the role from an earlier lookup is then kept.
+    private func lookUpRole() async -> String? {
+        do {
+            return try await fetchUserRole(userId: userId, baseURL: baseURL)
+        } catch {
+            if !Task.isCancelled { print("Couldn't load the user's role:", error) }
+            return nil
+        }
+    }
+
+    // MARK: - Replying
+
+    /// Sends "I'll be there!", or removes the user's "I'll be there!" replies (only those).
+    private func toggleReply(_ message: PinnedMessage, replied: Bool) async {
+        // Checked before any waiting, so a fast double tap can't start two requests.
+        guard !busyIds.contains(message.id), canJoin(message, role: role) else { return }
+        busyIds.insert(message.id)
+        defer { busyIds.remove(message.id) }
+
+        if !replied {
+            do {
+                try await sendReply(messageId: message.id, userId: userId, body: attendingReply, baseURL: baseURL)
+            } catch {
+                print("Couldn't send the reply:", error)
+                Toast.show(isOfflineError(error) ? Self.offlineToast : "Couldn't send your reply. Try again.")
+                return
+            }
+            overrides[message.id] = true
+            Toast.show("Reply sent")
+            // Quietly, to get the new reply's id, which a later remove needs.
+            Task { await reload() }
+            return
+        }
+
+        // A reply sent moments ago has no id yet: reload to get it.
+        var ids = attendingReplyIds(message, userId: userId)
+        if ids.isEmpty {
+            let fresh = await reload() ?? state?.messages ?? []
+            ids = fresh.first { $0.id == message.id }.map { attendingReplyIds($0, userId: userId) } ?? []
+        }
+        if ids.isEmpty {
+            Toast.show("Couldn't remove your reply. Try again.")
+            return
+        }
+
+        // Every "I'll be there!" by this user goes, so accidental duplicates go too.
+        let userId = userId, baseURL = baseURL
+        let failure: (any Error)? = await withTaskGroup(of: (any Error)?.self) { group in
+            for id in ids {
+                group.addTask {
+                    do {
+                        try await deleteReply(replyId: id, userId: userId, baseURL: baseURL)
+                        return nil
+                    } catch {
+                        return error
+                    }
+                }
+            }
+            var first: (any Error)?
+            for await error in group where first == nil { first = error }
+            return first
+        }
+        if let failure {
+            print("Couldn't remove the reply:", failure)
+            Toast.show(isOfflineError(failure) ? Self.offlineToast : "Couldn't remove your reply. Try again.")
+        } else {
+            overrides[message.id] = false
+            Toast.show("Reply removed")
+        }
+        // Shows what's left, even after a partial remove.
+        Task { await reload() }
     }
 }
