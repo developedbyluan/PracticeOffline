@@ -16,11 +16,6 @@ struct TabsLayout: View {
     }
 }
 
-/// src/app/(tabs)/index.tsx (placeholder)
-struct HomeScreen: View {
-    var body: some View { PlaceholderScreen(title: "Home") }
-}
-
 /// src/app/(tabs)/sessions.tsx (placeholder)
 struct SessionsScreen: View {
     var body: some View { PlaceholderScreen(title: "Sessions") }
