@@ -18,11 +18,6 @@ struct TabsLayout: View {
     }
 }
 
-/// src/app/(tabs)/pinned.tsx (placeholder)
-struct PinnedScreen: View {
-    var body: some View { PlaceholderScreen(title: "Pinned") }
-}
-
 /// src/app/(tabs)/settings.tsx (placeholder)
 struct SettingsScreen: View {
     var body: some View { PlaceholderScreen(title: "Settings") }

@@ -3,19 +3,31 @@ import Foundation
 // Port of src/data/sessionUpload.ts (see docs/play-time-tracking.md, "Uploading"):
 // sends listening sessions to POST /sessions, one at a time.
 
-/// HTTP Basic auth for flucom-api endpoints that need it, from Secrets.xcconfig (through
-/// Info.plist). Like the Android app's EXPO_PUBLIC_ values, these end up inside the app,
-/// so they can be extracted from it: fine for internal testing, not for a public release.
+/// HTTP Basic auth headers, from Secrets.xcconfig (through Info.plist). Like the Android
+/// app's EXPO_PUBLIC_ values, these end up inside the app, so they can be extracted from
+/// it: fine for internal testing, not for a public release.
 nonisolated enum APIAuth {
     struct MissingCredentials: LocalizedError {
-        var errorDescription: String? { "Missing API_USER or API_PASS in Secrets.xcconfig" }
+        let names: String
+        var errorDescription: String? { "Missing \(names) in Secrets.xcconfig" }
     }
 
+    /// For flucom-api endpoints that need it (POST /sessions).
     static func basicHeader() throws -> String {
+        try header(userKey: "APIUser", passKey: "APIPass", names: "API_USER or API_PASS")
+    }
+
+    /// For the commonvocab server (pinned messages), which has its own login.
+    static func commonvocabHeader() throws -> String {
+        try header(userKey: "CommonvocabAPIUser", passKey: "CommonvocabAPIPass",
+                   names: "COMMONVOCAB_API_USER or COMMONVOCAB_API_PASS")
+    }
+
+    private static func header(userKey: String, passKey: String, names: String) throws -> String {
         let info = Bundle.main.infoDictionary ?? [:]
-        let user = (info["APIUser"] as? String ?? "").trimmingCharacters(in: .whitespaces)
-        let pass = (info["APIPass"] as? String ?? "").trimmingCharacters(in: .whitespaces)
-        guard !user.isEmpty, !pass.isEmpty else { throw MissingCredentials() }
+        let user = (info[userKey] as? String ?? "").trimmingCharacters(in: .whitespaces)
+        let pass = (info[passKey] as? String ?? "").trimmingCharacters(in: .whitespaces)
+        guard !user.isEmpty, !pass.isEmpty else { throw MissingCredentials(names: names) }
         return "Basic " + Data("\(user):\(pass)".utf8).base64EncodedString()
     }
 }
