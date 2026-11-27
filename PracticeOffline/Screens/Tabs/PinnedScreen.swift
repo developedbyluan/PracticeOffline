@@ -3,8 +3,8 @@ import SwiftUI
 
 /// Port of src/app/(tabs)/pinned.tsx: the signed-in user's pinned messages, loaded fresh
 /// each time the tab is opened, with pull to refresh, and the "I'll be there!" replies.
-/// Online only. Also keeps the event reminders in line with the replies. Not yet ported:
-/// the "Get notified" card (it comes with push).
+/// Online only. Also keeps the event reminders in line with the replies, and offers
+/// new-event notifications with the "Get notified" card.
 struct PinnedScreen: View {
     @Environment(Clerk.self) private var clerk
 
@@ -68,6 +68,8 @@ struct PinnedList: View {
         .onDisappear { loadTask?.cancel() }
         // An event reminder was tapped while this tab was already showing.
         .onChange(of: AppNavigation.shared.pinnedRequests) { Task { await reload() } }
+        // A new-event push arrived while the app is open.
+        .onChange(of: AppNavigation.shared.newPinnedArrivals) { Task { await reload() } }
     }
 
     private func list(_ state: LoadState) -> some View {
@@ -75,6 +77,7 @@ struct PinnedList: View {
         return GeometryReader { geometry in
             ScrollView {
                 VStack(spacing: 16) {
+                    PushPromptCard()
                     if let problem = state.problem {
                         problemBox(problem, showRetry: state.messages == nil)
                     }

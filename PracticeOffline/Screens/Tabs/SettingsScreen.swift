@@ -5,12 +5,6 @@ import SwiftUI
 /// Port of src/app/(tabs)/settings.tsx (see docs/settings-account.md): the Account section
 /// (who's signed in, Clerk's profile screen, Sign out) and the notification settings.
 struct SettingsScreen: View {
-    /// Whether to get a push when a new event is pinned. On by default, as in the Android
-    /// app. Only remembered for now: push notifications come in a later milestone.
-    static let newPinnedEventsKey = "newPinnedEventsEnabled"
-
-    @AppStorage(Self.newPinnedEventsKey) private var newPinnedEvents = true
-
     var body: some View {
         NavigationStack {
             List {
@@ -20,16 +14,7 @@ struct SettingsScreen: View {
 
                 Section {
                     EventRemindersRow()
-                    Toggle(isOn: $newPinnedEvents) {
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text("New pinned events")
-                            Text("When a new event is pinned")
-                                .font(.footnote)
-                                .foregroundStyle(.secondary)
-                        }
-                    }
-                } footer: {
-                    Text("New pinned events needs push notifications, which aren't set up yet, so for now it only remembers your choice.")
+                    NewPinnedEventsRow()
                 }
             }
             .navigationTitle("Settings")

@@ -12,11 +12,14 @@ struct MainScreen: View {
     var body: some View {
         content
             // Notifications belong to the signed-in user: signing out cancels every event
-            // reminder, and switching accounts cancels the previous account's.
+            // reminder and unregisters from new-event pushes; switching accounts cancels the
+            // previous account's reminders and moves the push registration.
             .task(id: clerk.isLoaded ? (clerk.user?.id ?? "signed-out") : nil) {
                 guard clerk.isLoaded else { return }
                 let userId = clerk.user?.id
                 EventReminders.shared.cancelOtherUsers(userId)
+                // Register for new-event pushes, remove the registration, or move it.
+                PushNotifications.shared.userChanged(userId)
                 // The next sign-in starts on Home, like the Android app.
                 if userId == nil { AppNavigation.shared.tab = .home }
             }

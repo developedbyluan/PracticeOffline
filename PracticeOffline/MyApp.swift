@@ -37,7 +37,11 @@ import SwiftUI
                     .environment(Clerk.shared)
                     // Notification permission may have been changed in the iPhone's Settings.
                     .onChange(of: scenePhase) { _, phase in
-                        if phase == .active { Task { await NotificationPermission.shared.refresh() } }
+                        if phase == .active {
+                            Task { await NotificationPermission.shared.refresh() }
+                            // Only sends a request when something changed.
+                            PushNotifications.shared.sync()
+                        }
                     }
             }
         }

@@ -78,11 +78,16 @@ nonisolated final class ForegroundNotifications: NSObject, UNUserNotificationCen
 
     func userNotificationCenter(_ center: UNUserNotificationCenter,
                                 willPresent notification: UNNotification) async -> UNNotificationPresentationOptions {
-        [.banner, .list, .sound]
+        // A new event was pinned: an open Pinned tab shows it right away.
+        if notification.request.content.userInfo["type"] as? String == PushNotifications.newPinnedType {
+            await MainActor.run { AppNavigation.shared.newPinnedArrived() }
+        }
+        return [.banner, .list, .sound]
     }
 
-    /// Notification types whose tap opens the Pinned tab. The new-event push joins later.
-    private static let opensPinned: Set<String> = [EventReminders.notificationType]
+    /// Notification types whose tap opens the Pinned tab: the event reminder (on the phone)
+    /// and the new-event push (from the worker, through Firebase).
+    private static let opensPinned: Set<String> = [EventReminders.notificationType, PushNotifications.newPinnedType]
 
     func userNotificationCenter(_ center: UNUserNotificationCenter,
                                 didReceive response: UNNotificationResponse) async {
