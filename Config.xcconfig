@@ -1,0 +1,6 @@
+// Build settings shared by every configuration of the PracticeOffline target.
+// Real values come from Secrets.xcconfig (gitignored). If it's missing the
+// build still works, but the app will stop at launch asking for the key.
+
+CLERK_PUBLISHABLE_KEY =
+#include? "Secrets.xcconfig"
