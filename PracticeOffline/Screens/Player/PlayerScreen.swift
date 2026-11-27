@@ -19,6 +19,8 @@ struct PlayerScreen: View {
 
     var body: some View {
         content
+            // Above the player's controls.
+            .toastHost(bottomPadding: 210)
             // While the player is open, background updates leave this lesson's files alone.
             .task(id: request.source.mediaId) {
                 let release = downloads.markInUse(mediaId: request.source.mediaId)

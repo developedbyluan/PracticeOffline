@@ -51,7 +51,8 @@ final class PlaybackEngine {
         player = AVPlayer(url: url)
     }
 
-    /// Reads the file's length, then starts reporting the time 4 times a second.
+    /// Reads the file's length, then starts reporting the time 10 times a second (the
+    /// Android app uses 4; more often keeps the repeat range's loop tight).
     func load() async {
         // Play even when the iPhone's silent switch is on.
         try? AVAudioSession.sharedInstance().setCategory(.playback, mode: .spokenAudio)
@@ -65,7 +66,7 @@ final class PlaybackEngine {
 
         // Also called when playback starts or stops, and after a seek.
         timeObserver = player.addPeriodicTimeObserver(
-            forInterval: CMTime(seconds: 0.25, preferredTimescale: 600), queue: .main
+            forInterval: CMTime(seconds: 0.1, preferredTimescale: 600), queue: .main
         ) { [weak self] time in
             MainActor.assumeIsolated { self?.update(time) }
         }
