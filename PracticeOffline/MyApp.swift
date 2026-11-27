@@ -4,6 +4,8 @@ import SwiftUI
 /// Port of src/app/_layout.tsx: sets up Clerk and shows the start screen.
 /// (Notifications, toasts, the player and account sheets come in later milestones.)
 @main struct MyApp: App {
+    /// Keeps the app in portrait except fullscreen video (see OrientationLock).
+    @UIApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
     /// Read from Info.plist, which gets it from Secrets.xcconfig.
     private let publishableKey: String
 

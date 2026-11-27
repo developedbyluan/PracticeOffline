@@ -6,7 +6,7 @@ import UIKit
 /// picture's place. Everything else — transcript, seek bar, ±5 s, repeat range, text size,
 /// resume and the lock screen — is the same as audio, because it uses the same
 /// PlayerLayout and PlaybackEngine. The sound keeps playing in the background until the
-/// player closes. The fullscreen button (VideoFullscreen.tsx) comes in a later milestone.
+/// player closes. The fullscreen button opens VideoFullscreen, which shows subtitles.
 struct VideoPlayerScreen: View {
     let mediaId: Int
     /// The downloaded file.
@@ -19,6 +19,11 @@ struct VideoPlayerScreen: View {
     let transcript: TranscriptResult?
 
     @State private var engine: PlaybackEngine?
+    @State private var fullscreen = false
+
+    private var lines: [TranscriptLine]? {
+        if case .lines(let lines) = transcript { lines } else { nil }
+    }
 
     var body: some View {
         PlayerLayout(
@@ -46,13 +51,27 @@ struct VideoPlayerScreen: View {
             // Saves the position, stops the video and removes the lock-screen controls.
             engine?.stop()
         }
+        // Over the player, which keeps running underneath.
+        .fullScreenCover(isPresented: $fullscreen) {
+            if let engine {
+                VideoFullscreen(engine: engine, lines: lines) { setFullscreen(false) }
+            }
+        }
+    }
+
+    /// Without the slide-up animation, which looks odd while the screen rotates.
+    private func setFullscreen(_ on: Bool) {
+        var transaction = Transaction()
+        transaction.disablesAnimations = true
+        withTransaction(transaction) { fullscreen = on }
     }
 
     /// Full width, 16:9, black, no built-in controls.
     private var videoArea: some View {
-        ZStack {
+        ZStack(alignment: .bottomTrailing) {
             Color.black
-            if let engine {
+            // The picture shows in one place at a time: here, or in fullscreen.
+            if let engine, !fullscreen {
                 VideoSurface(player: engine.avPlayer)
                     .accessibilityLabel("Video")
             }
@@ -60,13 +79,28 @@ struct VideoPlayerScreen: View {
                 Text("Couldn't play this video.")
                     .font(.subheadline)
                     .foregroundStyle(.white)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+            } else {
+                Button {
+                    setFullscreen(true)
+                } label: {
+                    Image(systemName: "arrow.up.left.and.arrow.down.right")
+                        .font(.system(size: 16, weight: .semibold))
+                        .foregroundStyle(.white)
+                        .frame(width: 36, height: 36)
+                        .background(.black.opacity(0.5), in: .circle)
+                }
+                .buttonStyle(.plain)
+                .padding(12)
+                .accessibilityLabel("Full screen")
+                .disabled(engine?.isLoaded != true)
             }
         }
     }
 }
 
-/// Shows an AVPlayer's picture.
-private struct VideoSurface: UIViewRepresentable {
+/// Shows an AVPlayer's picture. Used in the player and in fullscreen.
+struct VideoSurface: UIViewRepresentable {
     let player: AVPlayer
 
     func makeUIView(context: Context) -> PlayerView {
@@ -87,7 +121,7 @@ private struct VideoSurface: UIViewRepresentable {
 /// A view whose layer is the video picture. iOS pauses a video in the background while
 /// its picture is on screen, so the picture is unhooked when the app leaves the screen
 /// (the sound goes on) and hooked back up when it returns.
-private final class PlayerView: UIView {
+final class PlayerView: UIView {
     override static var layerClass: AnyClass { AVPlayerLayer.self }
     private var playerLayer: AVPlayerLayer { layer as! AVPlayerLayer }
     private var player: AVPlayer?

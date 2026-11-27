@@ -67,6 +67,8 @@ final class PlaybackEngine {
     private(set) var playing = false
     /// The file couldn't be opened or played.
     private(set) var failed = false
+    /// A video that's taller than wide, which stays portrait in fullscreen.
+    private(set) var videoIsPortrait = false
 
     /// The underlying player, so the video screen can show its picture.
     var avPlayer: AVPlayer { player }
@@ -110,6 +112,7 @@ final class PlaybackEngine {
             return
         }
         duration = length.seconds.isFinite ? length.seconds : 0
+        if nowPlaying.isVideo { videoIsPortrait = await Self.isPortrait(asset) }
 
         // Open where the lesson was left off. Done before the time is reported, so the
         // 0 the player starts at never overwrites the saved position.
@@ -182,6 +185,15 @@ final class PlaybackEngine {
         commandTargets = []
         MPNowPlayingInfoCenter.default().nowPlayingInfo = nil
         try? AVAudioSession.sharedInstance().setActive(false, options: .notifyOthersOnDeactivation)
+    }
+
+    /// Whether the video's picture, as shown (after any rotation), is taller than wide.
+    private nonisolated static func isPortrait(_ asset: AVAsset) async -> Bool {
+        guard let track = try? await asset.loadTracks(withMediaType: .video).first,
+              let (size, transform) = try? await track.load(.naturalSize, .preferredTransform)
+        else { return false }
+        let shown = CGRect(origin: .zero, size: size).applying(transform)
+        return abs(shown.height) > abs(shown.width)
     }
 
     // MARK: - Position

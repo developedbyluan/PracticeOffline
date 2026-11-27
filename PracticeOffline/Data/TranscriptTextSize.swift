@@ -3,16 +3,20 @@ import SwiftUI
 /// Port of src/data/transcriptTextSize.ts: the transcript text sizes the player's "Aa"
 /// button steps through. Medium is the default. The phone's own text-size setting scales
 /// these too. The choice is saved on the phone and used for every lesson and account.
+/// The same setting sizes fullscreen video subtitles, a few steps bigger because the
+/// screen is watched from further away.
 nonisolated struct TranscriptTextSize: Sendable {
     let name: String
     let fontSize: CGFloat
     let lineHeight: CGFloat
+    let subtitleFontSize: CGFloat
+    let subtitleLineHeight: CGFloat
 
     static let all: [TranscriptTextSize] = [
-        TranscriptTextSize(name: "Small", fontSize: 14, lineHeight: 20),
-        TranscriptTextSize(name: "Medium", fontSize: 16, lineHeight: 22),
-        TranscriptTextSize(name: "Large", fontSize: 18, lineHeight: 25),
-        TranscriptTextSize(name: "Extra large", fontSize: 20, lineHeight: 28),
+        TranscriptTextSize(name: "Small", fontSize: 14, lineHeight: 20, subtitleFontSize: 16, subtitleLineHeight: 22),
+        TranscriptTextSize(name: "Medium", fontSize: 16, lineHeight: 22, subtitleFontSize: 20, subtitleLineHeight: 27),
+        TranscriptTextSize(name: "Large", fontSize: 18, lineHeight: 25, subtitleFontSize: 24, subtitleLineHeight: 32),
+        TranscriptTextSize(name: "Extra large", fontSize: 20, lineHeight: 28, subtitleFontSize: 28, subtitleLineHeight: 37),
     ]
 
     static let defaultIndex = 1
