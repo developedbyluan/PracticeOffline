@@ -34,6 +34,8 @@ struct HomeScreen: View {
             .sheet(item: $player) { request in
                 PlayerScreen(request: request)
             }
+            // Tapping an event reminder shows the Pinned tab, so the player closes.
+            .onChange(of: AppNavigation.shared.pinnedRequests) { player = nil }
             .onChange(of: scenePhase) { _, phase in
                 // Refresh when the app comes back to the foreground, so server updates are noticed.
                 if phase == .active, let userId, isStale {

@@ -10,6 +10,19 @@ struct MainScreen: View {
     @State private var isAuthOpen = false
 
     var body: some View {
+        content
+            // Notifications belong to the signed-in user: signing out cancels every event
+            // reminder, and switching accounts cancels the previous account's.
+            .task(id: clerk.isLoaded ? (clerk.user?.id ?? "signed-out") : nil) {
+                guard clerk.isLoaded else { return }
+                let userId = clerk.user?.id
+                EventReminders.shared.cancelOtherUsers(userId)
+                // The next sign-in starts on Home, like the Android app.
+                if userId == nil { AppNavigation.shared.tab = .home }
+            }
+    }
+
+    @ViewBuilder private var content: some View {
         if !clerk.isLoaded {
             ProgressView()
                 .controlSize(.large)

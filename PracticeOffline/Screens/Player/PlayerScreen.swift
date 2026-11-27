@@ -26,7 +26,10 @@ struct PlayerScreen: View {
             .task(id: request.source.mediaId) {
                 let release = downloads.markInUse(mediaId: request.source.mediaId)
                 // Check the disk once, in case the file was removed outside the app.
-                _ = downloads.localMediaURL(mediaId: request.source.mediaId, fileUrl: request.source.fileUrl)
+                let playable = downloads.localMediaURL(mediaId: request.source.mediaId, fileUrl: request.source.fileUrl) != nil
+                    && MediaKind(fileUrl: request.source.fileUrl) != nil
+                // The first lesson opened each day sets the practice reminder's habit time.
+                if playable { ReminderSettingsStore.shared.recordLessonOpened() }
                 await waitUntilCancelled()
                 release()
             }

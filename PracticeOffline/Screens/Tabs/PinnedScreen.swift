@@ -3,8 +3,8 @@ import SwiftUI
 
 /// Port of src/app/(tabs)/pinned.tsx: the signed-in user's pinned messages, loaded fresh
 /// each time the tab is opened, with pull to refresh, and the "I'll be there!" replies.
-/// Online only. Not yet ported: the "Get notified" card and event reminders (they come
-/// with notifications).
+/// Online only. Also keeps the event reminders in line with the replies. Not yet ported:
+/// the "Get notified" card (it comes with push).
 struct PinnedScreen: View {
     @Environment(Clerk.self) private var clerk
 
@@ -66,6 +66,8 @@ struct PinnedList: View {
         // Reload whenever the tab comes into view.
         .onAppear { Task { await reload() } }
         .onDisappear { loadTask?.cancel() }
+        // An event reminder was tapped while this tab was already showing.
+        .onChange(of: AppNavigation.shared.pinnedRequests) { Task { await reload() } }
     }
 
     private func list(_ state: LoadState) -> some View {
@@ -161,6 +163,13 @@ struct PinnedList: View {
             guard !Task.isCancelled else { return nil }
             state = LoadState(messages: messages, problem: nil, loadedAt: .now)
             if let role { self.role = role }
+            // Reminders 30 minutes before the events this user is going to and may join.
+            // Skipped while the role is unknown, so a failed lookup never cancels them.
+            if let known = self.role {
+                EventReminders.shared.sync(
+                    userId: userId,
+                    events: attendingEvents(messages.filter { canJoin($0, role: known) }, userId: userId))
+            }
             // Forget local states the server now agrees with.
             for message in messages {
                 let onServer = !attendingReplyIds(message, userId: userId).isEmpty
@@ -212,7 +221,11 @@ struct PinnedList: View {
                 return
             }
             overrides[message.id] = true
-            Toast.show("Reply sent")
+            // May ask for notification permission the first time.
+            let reminder = await EventReminders.shared.remindAfterReply(userId: userId, event: eventFor(message))
+            Toast.show(reminder == .noPermission
+                       ? "Reply sent. Turn on notifications to get a reminder."
+                       : "Reply sent")
             // Quietly, to get the new reply's id, which a later remove needs.
             Task { await reload() }
             return
@@ -251,6 +264,7 @@ struct PinnedList: View {
             Toast.show(isOfflineError(failure) ? Self.offlineToast : "Couldn't remove your reply. Try again.")
         } else {
             overrides[message.id] = false
+            EventReminders.shared.cancel(messageId: message.id)
             Toast.show("Reply removed")
         }
         // Shows what's left, even after a partial remove.

@@ -292,3 +292,8 @@ nonisolated func bodyLines(_ body: String) -> [BodyLine] {
             return BodyLine(level: 0, text: line)
         }
 }
+
+/// A short title for the message, e.g. for a notification: its first line, without "#".
+nonisolated func messageTitle(_ body: String) -> String {
+    bodyLines(body).first?.text ?? "Pinned event"
+}
